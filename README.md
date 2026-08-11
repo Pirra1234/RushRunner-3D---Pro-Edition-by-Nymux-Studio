@@ -58,7 +58,7 @@ Este proyecto combina el poder del desarrollo nativo en **Kotlin** con la flexib
 
 👤 Créditos
 
-Desarrollador: Santy
+Desarrollador: Santiago Castillo Tadeo
 
 Nymux Studio — 2026
 
