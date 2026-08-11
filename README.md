@@ -59,6 +59,7 @@ Este proyecto combina el poder del desarrollo nativo en **Kotlin** con la flexib
 👤 Créditos
 
 Desarrollador: Santy
+
 Nymux Studio — 2026
 
 Proyecto desarrollado íntegramente por Nymux Studio como demostración de desarrollo de videojuegos para Android, utilizando Kotlin, JavaScript, HTML5 Canvas y CSS3.
