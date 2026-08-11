@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RushRunner 3D - Edición Escudos y Doble Salto</title>
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --neon-blue: #38bdf8;
+            --neon-pink: #f43f5e;
+            --neon-gold: #fbbf24;
+            --neon-green: #22c55e;
+            --text-light: #f1f5f9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-light);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .screen {
+            display: none;
+            text-align: center;
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.98);
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+            backdrop-filter: blur(15px);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 85%;
+            max-width: 400px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15rem;
+            margin-bottom: 0.8rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--neon-pink);
+            border: 2px solid var(--neon-pink);
+            padding: 0.8rem 1.5rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 10px rgba(244, 63, 94, 0.2);
+            margin-top: 0.8rem;
+            width: 100%;
+            border-radius: 0.5rem;
+        }
+
+        .btn:hover {
+            background: var(--neon-pink);
+            color: white;
+            box-shadow: 0 0 25px var(--neon-pink);
+        }
+
+        .btn-blue {
+            color: var(--neon-blue);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+        }
+
+        .btn-blue:hover {
+            background: var(--neon-blue);
+            box-shadow: 0 0 25px var(--neon-blue);
+        }
+
+        #hud {
+            position: absolute;
+            top: 40px;
+            width: 92%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            color: var(--neon-blue);
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .hud-small {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: -4px;
+        }
+
+        .powerup-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .powerup-bar-bg {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            width: 100%;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .powerup-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            padding: 0.8rem;
+            margin: 0.8rem 0;
+            border-radius: 0.8rem;
+            border: 1px solid var(--neon-blue);
+        }
+
+        .shop-item-info {
+            text-align: left;
+        }
+
+        .shop-item-title {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .shop-item-price {
+            font-size: 0.85rem;
+            color: var(--neon-gold);
+        }
+
+        #menu-screen { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div class="hud-row">
+            <div id="score">0m</div>
+            <div id="coins-display">💰 0</div>
+        </div>
+        <div class="hud-row hud-small">
+            <div id="lives-display">❤️ 0</div>
+            <div id="high-score">RECORD: 0m</div>
+        </div>
+        <div class="powerup-container">
+            <div id="magnet-timer-bg" class="powerup-bar-bg">
+                <div id="magnet-timer" class="powerup-bar" style="background: var(--neon-blue);"></div>
+            </div>
+            <div id="shield-timer-bg" class="powerup-bar-bg">
+                <div id="shield-timer" class="powerup-bar" style="background: var(--neon-green);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ui-layer">
+        <!-- Pantalla de Inicio -->
+        <div id="menu-screen" class="screen">
+            <img src="logo_nymux.png" alt="Logo Nymux" style="width: 150px; height: auto; margin-bottom: 10px; border-radius: 1rem;" onerror="this.src='https://via.placeholder.com/150?text=NYMUX'">
+            <h1>RUSH RUNNER</h1>
+            <p style="margin-bottom: 8px; color: #94a3b8; font-size: 0.95rem;">CORRE, SALTA X2 Y PROTÉGETE</p>
+            <div style="font-size: 0.8rem; color: var(--neon-blue); margin-bottom: 15px; line-height: 1.4;">
+                Desliza para moverte<br>Doble toque arriba para saltar
+            </div>
+            <button class="btn" id="start-btn">EMPEZAR</button>
+            <button class="btn btn-blue" id="open-shop-btn">TIENDA</button>
+        </div>
+
+        <!-- Pantalla de Tienda -->
+        <div id="shop-screen" class="screen">
+            <h1>TIENDA PRO</h1>
+            <div class="hud-row" style="margin-bottom: 0.5rem; color: var(--neon-gold); font-size: 1rem;">
+                <span id="shop-coins">💰 0</span>
+                <span id="shop-lives">❤️ 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 10px;">
+                <span id="shop-shields-display" style="color: var(--neon-green);">🛡️ Escudos: 0</span>
+                <span id="shop-magnets-display" style="color: var(--neon-blue);">🧲 Imanes: 0</span>
+            </div>
+
+            <div class="shop-item">
+                <div class="shop-item-info">
+                    <div class="shop-item-title">Vida Extra</div>
+                    <div class="shop-item-price">💰 50 Monedas</div>
+                </div>
+                <button class="btn btn-blue" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin-top: 0;" onclick="buyLife()">COMPRAR</button>
+            </div>
+
+            <div class="shop-item">
+                <div class="shop-item-info">
+                    <div class="shop-item-title">Escudo Inicio</div>
+                    <div class="shop-item-price">💰 30 Monedas</div>
+                </div>
+                <button class="btn btn-blue" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin-top: 0;" onclick="buyShield()">COMPRAR</button>
+            </div>
+
+            <div class="shop-item">
+                <div class="shop-item-info">
+                    <div class="shop-item-title">Imán Inicio</div>
+                    <div class="shop-item-price">💰 40 Monedas</div>
+                </div>
+                <button class="btn btn-blue" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.9rem; margin-top: 0;" onclick="buyMagnet()">COMPRAR</button>
+            </div>
+
+            <button class="btn" onclick="closeShop()">VOLVER</button>
+        </div>
+
+        <!-- Pantalla de Game Over -->
+        <div id="gameover-screen" class="screen">
+            <img src="logo_nymux.png" alt="Logo Nymux" style="width: 80px; height: auto; margin-bottom: 10px; border-radius: 0.5rem; opacity: 0.8;" onerror="this.src='https://via.placeholder.com/80?text=NYMUX'">
+            <h1 id="gameover-title" style="color: var(--neon-pink); font-size: 2rem;">¡CHOQUE!</h1>
+            <div style="margin: 1rem 0;">
+                <div id="final-dist" style="font-size: 1.8rem; color: white;">0m</div>
+                <div id="final-coins" style="font-size: 1.1rem; color: var(--neon-gold);">💰 0</div>
+            </div>
+            <button class="btn btn-blue" id="revive-btn" style="display:none; font-size: 1rem;">REVIVIR (❤️ 1)</button>
+            <button class="btn btn-blue" style="font-size: 1rem;" onclick="openShopFromGameOver()">TIENDA</button>
+            <button class="btn" id="restart-btn" style="font-size: 1rem;">FIN DE CARRERA</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * RUSH RUNNER 3D - EDICIÓN ESCUDOS
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('game-container');
+
+// Configuración
+const LANES = [-1, 0, 1];
+const LANE_WIDTH = 300;
+const HORIZON_Y = 650;
+const FOV = 700;
+const COLORS = {
+    player: '#38bdf8',
+    obstacle: '#f43f5e',
+    coin: '#fbbf24',
+    shield: '#22c55e',
+    grid: '#1e293b',
+    road: '#0f172a'
+};
+
+// Persistencia
+let totalCoins = parseInt(localStorage.getItem('rushCoins')) || 0;
+let totalLives = parseInt(localStorage.getItem('rushLives')) || 0;
+let totalShields = parseInt(localStorage.getItem('rushShields')) || 0;
+let totalMagnets = parseInt(localStorage.getItem('rushMagnets')) || 0; // NUEVO
+let highScore = parseInt(localStorage.getItem('rush3DScore')) || 0;
+
+// Estado del juego
+let currentState = 'MENU';
+let score = 0;
+let sessionCoins = 0;
+let speed = 0.15;
+let playerLane = 1;
+let currentX = 0;
+let playerY = 0;
+let vy = 0;
+let jumpCount = 0;
+let isJumping = false;
+let entities = [];
+let frame = 0;
+let worldZ = 0;
+let playerTilt = 0;
+let magnetTime = 0;
+let shieldTime = 0; // Duración del escudo
+
+function resize() {
+    canvas.width = 1080;
+    canvas.height = 1920;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Input
+let touchStartX = 0;
+let touchStartY = 0;
+
+function handleMove(dir) {
+    if (currentState !== 'PLAYING') return;
+    if (dir === 'left' && playerLane > 0) {
+        playerLane--;
+        playerTilt = -0.25;
+    }
+    if (dir === 'right' && playerLane < 2) {
+        playerLane++;
+        playerTilt = 0.25;
+    }
+    if (dir === 'up') jump();
+}
+
+function jump() {
+    if (jumpCount < 2) {
+        vy = 35;
+        isJumping = true;
+        jumpCount++;
+    }
+}
+
+// Eventos
+window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') handleMove('left');
+    if (e.key === 'ArrowRight' || e.key === 'd') handleMove('right');
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') handleMove('up');
+});
+
+canvas.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const threshold = 30;
+
+    // Si el movimiento es muy pequeño, es un toque (TAP) -> SALTAR
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+        jump();
+        return;
+    }
+
+    // Lógica de Swipes (Deslizar)
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > threshold) handleMove('right');
+        else if (dx < -threshold) handleMove('left');
+    } else {
+        if (dy < -threshold) handleMove('up');
+    }
+});
+
+// También permitir salto con clic de ratón (para pruebas o emulador)
+canvas.addEventListener('mousedown', e => {
+    if (currentState === 'PLAYING') jump();
+});
+
+/**
+ * Motor 3D
+ */
+function project(x, y, z) {
+    const scale = FOV / (FOV + z);
+    return {
+        x: (canvas.width / 2) + x * scale,
+        y: HORIZON_Y + (canvas.height - HORIZON_Y) * scale - y * scale,
+        scale: scale
+    };
+}
+
+class Entity {
+    constructor(lane, z, type) {
+        this.lane = lane;
+        this.z = z;
+        this.type = type; // 'obs', 'coin', 'magnet', 'shield'
+        this.w = (type === 'coin' || type === 'shield') ? 70 : 220;
+        this.h = (type === 'coin' || type === 'shield') ? 70 : (Math.random() > 0.5 ? 120 : 380);
+        this.collected = false;
+        this.rot = 0;
+    }
+    update() {
+        this.z -= speed * 120;
+        if (this.type === 'coin' || this.type === 'shield') {
+            this.rot += 0.1;
+            if (magnetTime > 0 && this.type === 'coin' && this.z < 1200) {
+                if (this.lane !== playerLane) this.lane += (playerLane > this.lane ? 0.15 : -0.15);
+            }
+        }
+    }
+    draw() {
+        if (this.collected) return;
+        const lx = LANES[Math.round(this.lane)] * LANE_WIDTH;
+        const p1 = project(lx - this.w / 2, 0, this.z);
+        const p2 = project(lx + this.w / 2, this.h, this.z);
+        if (p1.y < 0 || p1.z < -FOV) return;
+        ctx.save();
+        if (this.type === 'obs') {
+            ctx.fillStyle = COLORS.obstacle;
+            ctx.shadowBlur = 20 * p1.scale;
+            ctx.shadowColor = COLORS.obstacle;
+            ctx.fillRect(p1.x, p2.y, p2.x - p1.x, p1.y - p2.y);
+        } else if (this.type === 'coin') {
+            ctx.fillStyle = COLORS.coin;
+            ctx.shadowBlur = 15 * p1.scale;
+            ctx.shadowColor = COLORS.coin;
+            ctx.beginPath();
+            ctx.ellipse(p1.x + (p2.x-p1.x)/2, p2.y + (p1.y-p2.y)/2, (p2.x-p1.x)/2 * Math.abs(Math.cos(this.rot)), (p1.y-p2.y)/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (this.type === 'magnet') {
+            ctx.fillStyle = COLORS.player;
+            ctx.shadowBlur = 25 * p1.scale;
+            ctx.shadowColor = COLORS.player;
+            ctx.fillRect(p1.x, p2.y, p2.x - p1.x, p1.y - p2.y);
+            ctx.fillStyle = 'white';
+            ctx.font = `${Math.floor(40 * p1.scale)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText("U", p1.x + (p2.x-p1.x)/2, p2.y + (p1.y-p2.y)/2 + 15 * p1.scale);
+        } else if (this.type === 'shield') {
+            ctx.fillStyle = COLORS.shield;
+            ctx.shadowBlur = 25 * p1.scale;
+            ctx.shadowColor = COLORS.shield;
+            ctx.beginPath();
+            ctx.arc(p1.x + (p2.x-p1.x)/2, p2.y + (p1.y-p2.y)/2, (p2.x-p1.x)/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'white';
+            ctx.font = `${Math.floor(40 * p1.scale)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText("S", p1.x + (p2.x-p1.x)/2, p2.y + (p1.y-p2.y)/2 + 15 * p1.scale);
+        }
+        ctx.restore();
+    }
+}
+
+/**
+ * Lógica de Juego
+ */
+function initGame() {
+    score = 0;
+    sessionCoins = 0;
+    speed = 0.15;
+    playerLane = 1;
+    currentX = 0;
+    playerY = 0;
+    vy = 0;
+    jumpCount = 0;
+    isJumping = false;
+    entities = [];
+    magnetTime = 0;
+
+    // Si compramos escudos en la tienda, empezamos con uno
+    if (totalShields > 0) {
+        shieldTime = 800;
+        totalShields--;
+        localStorage.setItem('rushShields', totalShields);
+    } else {
+        shieldTime = 0;
+    }
+
+    // Si compramos imanes en la tienda, empezamos con uno (NUEVO)
+    if (totalMagnets > 0) {
+        magnetTime = 800;
+        totalMagnets--;
+        localStorage.setItem('rushMagnets', totalMagnets);
+    } else {
+        magnetTime = 0;
+    }
+
+    frame = 0;
+    worldZ = 0;
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('gameover-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'none';
+    currentState = 'PLAYING';
+    updateHUD();
+
+    if (score > 1000 && score < 1100) {
+        ctx.save();
+        ctx.fillStyle = COLORS.obstacle;
+        ctx.font = "bold 60px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = "white";
+        ctx.fillText("¡VELOCIDAD MÁXIMA!", canvas.width / 2, 450);
+        ctx.restore();
+    }
+}
+
+function gameOver() {
+    currentState = 'GAMEOVER';
+    saveStats();
+
+    document.getElementById('final-dist').innerText = `${Math.floor(score)}m`;
+    document.getElementById('final-coins').innerText = `💰 ${sessionCoins}`;
+    document.getElementById('gameover-screen').style.display = 'block';
+
+    const reviveBtn = document.getElementById('revive-btn');
+    if (totalLives > 0) {
+        reviveBtn.style.display = 'block';
+    } else {
+        reviveBtn.style.display = 'none';
+    }
+}
+
+function revive() {
+    if (totalLives > 0) {
+        totalLives--;
+        localStorage.setItem('rushLives', totalLives);
+        entities = entities.filter(e => e.z > 500 || e.z < 0);
+        playerY = 0; vy = 0; jumpCount = 0; isJumping = false;
+        document.getElementById('gameover-screen').style.display = 'none';
+        currentState = 'PLAYING';
+        updateHUD();
+    }
+}
+
+function saveStats() {
+    totalCoins += sessionCoins;
+    localStorage.setItem('rushCoins', totalCoins);
+    if (score > highScore) {
+        highScore = Math.floor(score);
+        localStorage.setItem('rush3DScore', highScore);
+    }
+}
+
+/**
+ * Tienda
+ */
+let shopOrigin = 'MENU';
+function openShop() {
+    shopOrigin = 'MENU';
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'block';
+    updateShopUI();
+}
+
+function openShopFromGameOver() {
+    shopOrigin = 'GAMEOVER';
+    document.getElementById('gameover-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'block';
+    updateShopUI();
+}
+
+function closeShop() {
+    document.getElementById('shop-screen').style.display = 'none';
+    if (shopOrigin === 'MENU') {
+        document.getElementById('menu-screen').style.display = 'block';
+    } else {
+        document.getElementById('gameover-screen').style.display = 'block';
+    }
+}
+
+function updateShopUI() {
+    document.getElementById('shop-coins').innerText = `💰 ${totalCoins}`;
+    document.getElementById('shop-lives').innerText = `❤️ ${totalLives}`;
+    document.getElementById('shop-shields-display').innerText = `🛡️ Escudos: ${totalShields}`;
+    document.getElementById('shop-magnets-display').innerText = `🧲 Imanes: ${totalMagnets}`;
+}
+
+function buyLife() {
+    if (totalCoins >= 50) {
+        totalCoins -= 50;
+        totalLives++;
+        saveShopStats();
+        updateShopUI();
+        updateHUD();
+    } else {
+        alert("¡No tienes suficientes monedas!");
+    }
+}
+
+function buyShield() {
+    if (totalCoins >= 30) {
+        totalCoins -= 30;
+        totalShields++;
+        saveShopStats();
+        updateShopUI();
+        updateHUD();
+    } else {
+        alert("¡No tienes suficientes monedas!");
+    }
+}
+
+function buyMagnet() {
+    if (totalCoins >= 40) {
+        totalCoins -= 40;
+        totalMagnets++;
+        saveShopStats();
+        updateShopUI();
+        updateHUD();
+    } else {
+        alert("¡No tienes suficientes monedas!");
+    }
+}
+
+function saveShopStats() {
+    localStorage.setItem('rushCoins', totalCoins);
+    localStorage.setItem('rushLives', totalLives);
+    localStorage.setItem('rushShields', totalShields);
+    localStorage.setItem('rushMagnets', totalMagnets);
+}
+
+function updateHUD() {
+    document.getElementById('score').innerText = `${Math.floor(score)}m`;
+    document.getElementById('coins-display').innerText = `💰 ${totalCoins + sessionCoins}`;
+    document.getElementById('lives-display').innerText = `❤️ ${totalLives}`;
+    document.getElementById('high-score').innerText = `RECORD: ${highScore}m`;
+
+    // Barras de Powerup
+    const magnetBarBg = document.getElementById('magnet-timer-bg');
+    if (magnetTime > 0) {
+        magnetBarBg.style.display = 'block';
+        document.getElementById('magnet-timer').style.width = (magnetTime / 600 * 100) + "%";
+    } else {
+        magnetBarBg.style.display = 'none';
+    }
+
+    const shieldBarBg = document.getElementById('shield-timer-bg');
+    if (shieldTime > 0) {
+        shieldBarBg.style.display = 'block';
+        document.getElementById('shield-timer').style.width = (shieldTime / 600 * 100) + "%";
+    } else {
+        shieldBarBg.style.display = 'none';
+    }
+}
+
+/**
+ * Bucle Principal
+ */
+function update() {
+    if (currentState !== 'PLAYING') return;
+
+    // Progresión de dificultad
+    let difficultyFactor = 1.0;
+    if (score > 1000) {
+        difficultyFactor = 1.4; // 40% más rápido después de 1000m
+        speed += 0.00008; // Incremento de velocidad más agresivo
+    } else {
+        speed += 0.00004;
+    }
+
+    score += speed * 2.5;
+    if (magnetTime > 0) magnetTime--;
+    if (shieldTime > 0) shieldTime--;
+
+    targetX = LANES[playerLane] * LANE_WIDTH;
+    currentX += (targetX - currentX) * 0.45;
+    playerTilt *= 0.85;
+
+    if (isJumping) {
+        playerY += vy;
+        vy -= 2.6;
+        if (playerY <= 0) {
+            playerY = 0;
+            isJumping = false;
+            jumpCount = 0;
+        }
+    }
+
+    worldZ += speed * 120;
+
+    // Frecuencia de aparición más alta según puntuación
+    let spawnInterval = Math.max(30, Math.floor(55 / difficultyFactor));
+    if (frame % spawnInterval === 0) {
+        const typeRand = Math.random();
+        if (typeRand > 0.45) entities.push(new Entity(Math.floor(Math.random()*3), 3500, 'obs'));
+        else if (typeRand > 0.1) entities.push(new Entity(Math.floor(Math.random()*3), 3500, 'coin'));
+        else if (typeRand > 0.05) entities.push(new Entity(Math.floor(Math.random()*3), 3500, 'magnet'));
+        else entities.push(new Entity(Math.floor(Math.random()*3), 3500, 'shield'));
+    }
+
+    for (let i = entities.length - 1; i >= 0; i--) {
+        const ent = entities[i];
+        ent.update();
+        if (ent.z < 200 && ent.z > -50 && !ent.collected) {
+            const dist = Math.abs(LANES[playerLane] * LANE_WIDTH - LANES[Math.round(ent.lane)] * LANE_WIDTH);
+            if (dist < 150) {
+                if (ent.type === 'obs' && playerY < ent.h * 0.75) {
+                    if (shieldTime > 0) {
+                        shieldTime = 0; // Se consume el escudo
+                        ent.collected = true; // "Destruye" el obstáculo
+                    } else {
+                        gameOver();
+                    }
+                } else if (ent.type === 'coin') {
+                    ent.collected = true;
+                    sessionCoins++;
+                } else if (ent.type === 'magnet') {
+                    ent.collected = true;
+                    magnetTime = 600;
+                } else if (ent.type === 'shield') {
+                    ent.collected = true;
+                    shieldTime += 600; // AHORA SE SUMA EL TIEMPO
+                    if (shieldTime > 1200) shieldTime = 1200; // Límite máximo de 2 escudos seguidos para balance
+                }
+            }
+        }
+        if (ent.z < -600) entities.splice(i, 1);
+    }
+    frame++;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Suelo y Rejilla
+    ctx.fillStyle = COLORS.road;
+    ctx.beginPath();
+    ctx.moveTo(project(-LANE_WIDTH*1.8, 0, 3500).x, project(-LANE_WIDTH*1.8, 0, 3500).y);
+    ctx.lineTo(project(LANE_WIDTH*1.8, 0, 3500).x, project(LANE_WIDTH*1.8, 0, 3500).y);
+    ctx.lineTo(project(LANE_WIDTH*2.8, 0, 0).x, canvas.height);
+    ctx.lineTo(project(-LANE_WIDTH*2.8, 0, 0).x, canvas.height);
+    ctx.fill();
+
+    ctx.strokeStyle = score > 1000 ? COLORS.obstacle : COLORS.grid;
+    ctx.lineWidth = score > 1000 ? 4 : 3;
+    [-1.5, -0.5, 0.5, 1.5].forEach(l => {
+        const p1 = project(l * LANE_WIDTH, 0, 0);
+        const p2 = project(l * LANE_WIDTH, 0, 3500);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    });
+
+    for (let z = -(worldZ % 450); z < 3500; z += 450) {
+        const pL = project(-1.8 * LANE_WIDTH, 0, z);
+        const pR = project(1.8 * LANE_WIDTH, 0, z);
+        ctx.globalAlpha = Math.max(0, 1 - (z / 3500));
+        ctx.beginPath(); ctx.moveTo(pL.x, pL.y); ctx.lineTo(pR.x, pR.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    entities.forEach(ent => ent.draw());
+
+    // Jugador
+    const pp = project(currentX, playerY, 200);
+    const pSize = 100 * pp.scale;
+    ctx.save();
+    ctx.translate(pp.x, pp.y);
+    ctx.rotate(playerTilt);
+
+    // Efecto de Escudo Activo
+    if (shieldTime > 0) {
+        ctx.shadowBlur = 60;
+        ctx.shadowColor = COLORS.shield;
+        ctx.strokeStyle = COLORS.shield;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, -pSize/2, pSize * 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+    } else {
+        ctx.shadowBlur = 45;
+        ctx.shadowColor = COLORS.player;
+    }
+
+    ctx.fillStyle = COLORS.player;
+    ctx.fillRect(-pSize / 2, -pSize, pSize, pSize);
+    ctx.fillStyle = 'white'; ctx.globalAlpha = 0.6;
+    ctx.fillRect(-pSize / 2, -pSize, pSize, pSize/6);
+    ctx.restore();
+
+    updateHUD();
+
+    if (score > 1000 && score < 1100) {
+        ctx.save();
+        ctx.fillStyle = COLORS.obstacle;
+        ctx.font = "bold 60px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = "white";
+        ctx.fillText("¡VELOCIDAD MÁXIMA!", canvas.width / 2, 450);
+        ctx.restore();
+    }
+}
+
+function loop() {
+    update(); draw(); requestAnimationFrame(loop);
+}
+
+document.getElementById('start-btn').onclick = initGame;
+document.getElementById('open-shop-btn').onclick = openShop;
+document.getElementById('restart-btn').onclick = initGame;
+document.getElementById('revive-btn').onclick = revive;
+
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RushRunner - Cyber Edition</title>
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --bg-slate: #1e293b;
+            --neon-blue: #38bdf8;
+            --neon-pink: #f43f5e;
+            --text-light: #f1f5f9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            max-height: 600px;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            background: var(--bg-deep);
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .screen {
+            display: none;
+            text-align: center;
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 3rem;
+            border-radius: 1.5rem;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 90%;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8rem;
+            margin-bottom: 1.5rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue);
+            font-weight: 900;
+        }
+
+        .instructions {
+            margin-bottom: 2.5rem;
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: var(--text-light);
+            opacity: 0.8;
+        }
+
+        .score-display {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            color: var(--neon-blue);
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--neon-pink);
+            border: 2px solid var(--neon-pink);
+            padding: 1.2rem 4rem;
+            font-size: 1.6rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            background: var(--neon-pink);
+            color: white;
+            box-shadow: 0 0 40px var(--neon-pink);
+            transform: translateY(-3px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        #hud {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            right: 25px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--neon-blue);
+            text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+            z-index: 5;
+        }
+
+        #menu-screen { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div id="current-score">SCORE: 0000</div>
+        <div id="high-score">BEST: 0000</div>
+    </div>
+
+    <div class="ui-layer">
+        <!-- Pantalla de Inicio -->
+        <div id="menu-screen" class="screen">
+            <h1>RushRunner</h1>
+            <p class="instructions">
+                ESQUIVA LOS OBSTÁCULOS NEÓN<br>
+                <strong>ESPACIO</strong>, <strong>CLICK</strong> o <strong>TAP</strong> PARA SALTAR
+            </p>
+            <button class="btn" id="start-btn">INICIAR FASE</button>
+        </div>
+
+        <!-- Pantalla de Game Over -->
+        <div id="gameover-screen" class="screen">
+            <h1 style="color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink);">ERROR CRÍTICO</h1>
+            <div class="score-display">
+                PUNTUACIÓN FINAL: <span id="final-score">0</span><br>
+                <small id="new-record-msg" style="display:none; color: gold;">¡NUEVO RÉCORD DETECTADO!</small>
+            </div>
+            <button class="btn" id="restart-btn">REINICIAR SISTEMA</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * RUSH RUNNER - CORE ENGINE
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('game-container');
+
+// UI Elements
+const menuScreen = document.getElementById('menu-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const finalScoreElement = document.getElementById('final-score');
+const currentScoreElement = document.getElementById('current-score');
+const highScoreElement = document.getElementById('high-score');
+const newRecordMsg = document.getElementById('new-record-msg');
+
+// Constants
+const COLORS = {
+    bg: '#0f172a',
+    grid: '#1e293b',
+    player: '#38bdf8',
+    playerGlow: 'rgba(56, 189, 248, 0.8)',
+    obstacle: '#f43f5e',
+    obstacleGlow: 'rgba(244, 63, 94, 0.8)',
+    dust: 'rgba(56, 189, 248, 0.3)',
+    explosion: '#f43f5e'
+};
+
+const STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
+
+// Game State
+let currentState = STATE.MENU;
+let score = 0;
+let highScore = localStorage.getItem('rushRunnerHighScore') || 0;
+let gameSpeed = 7;
+let frameCount = 0;
+let shakeTime = 0;
+let particles = [];
+let obstacles = [];
+let gridOffset = 0;
+
+/**
+ * Handle Canvas Resizing
+ */
+function resize() {
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    canvas.width = w;
+    canvas.height = h;
+}
+window.addEventListener('resize', resize);
+resize();
+
+/**
+ * Particle System
+ */
+class Particle {
+    constructor(x, y, color, size, vx, vy, life) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.size = size;
+        this.vx = vx;
+        this.vy = vy;
+        this.life = life;
+        this.initialLife = life;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+    }
+
+    draw(ctx) {
+        const alpha = this.life / this.initialLife;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = this.color;
+        ctx.fillRect(this.x, this.y, this.size, this.size);
+        ctx.restore();
+    }
+}
+
+function createExplosion(x, y, color) {
+    for (let i = 0; i < 30; i++) {
+        const size = Math.random() * 6 + 2;
+        const angle = Math.random() * Math.PI * 2;
+        const force = Math.random() * 8 + 2;
+        const vx = Math.cos(angle) * force;
+        const vy = Math.sin(angle) * force;
+        particles.push(new Particle(x, y, color, size, vx, vy, 40));
+    }
+}
+
+function createDust(x, y) {
+    const size = Math.random() * 4 + 1;
+    particles.push(new Particle(x, y, COLORS.dust, size, -gameSpeed * 0.4, -Math.random() * 2, 25));
+}
+
+/**
+ * Player Class
+ */
+class Player {
+    constructor() {
+        this.width = 45;
+        this.height = 45;
+        this.x = 120;
+        this.resetPosition();
+        this.vy = 0;
+        this.gravity = 0.85;
+        this.jumpForce = -17;
+        this.grounded = false;
+        this.rotation = 0;
+    }
+
+    resetPosition() {
+        this.y = canvas.height - 100 - this.height;
+    }
+
+    jump() {
+        if (this.grounded) {
+            this.vy = this.jumpForce;
+            this.grounded = false;
+            // Jump effect
+            for(let i=0; i<12; i++) {
+                particles.push(new Particle(this.x + this.width/2, this.y + this.height, COLORS.player, 5, (Math.random()-0.5)*8, Math.random()*3, 25));
+            }
+        }
+    }
+
+    update() {
+        this.vy += this.gravity;
+        this.y += this.vy;
+
+        const floorY = canvas.height - 100 - this.height;
+
+        if (this.y > floorY) {
+            this.y = floorY;
+            this.vy = 0;
+            if (!this.grounded) {
+                // Landing dust
+                for(let i=0; i<5; i++) createDust(this.x + this.width/2, this.y + this.height);
+            }
+            this.grounded = true;
+            this.rotation = 0;
+
+            if (frameCount % 6 === 0) createDust(this.x, this.y + this.height);
+        } else {
+            this.grounded = false;
+            this.rotation += 0.18;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate(this.rotation);
+
+        // Neon Glow
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = COLORS.player;
+
+        // Outer Box
+        ctx.fillStyle = COLORS.player;
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+        // Inner Pattern
+        ctx.strokeStyle = COLORS.bg;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-this.width / 2 + 8, -this.height / 2 + 8, this.width - 16, this.height - 16);
+
+        // Small Core
+        ctx.fillStyle = COLORS.bg;
+        ctx.fillRect(-5, -5, 10, 10);
+
+        ctx.restore();
+    }
+
+    getBounds() {
+        const padding = 6;
+        return {
+            x: this.x + padding,
+            y: this.y + padding,
+            w: this.width - padding * 2,
+            h: this.height - padding * 2
+        };
+    }
+}
+
+/**
+ * Obstacle Class
+ */
+class Obstacle {
+    constructor(speed) {
+        this.width = Math.random() * 25 + 35;
+        this.height = Math.random() * 40 + 45;
+        this.x = canvas.width + 100;
+        this.y = canvas.height - 100 - this.height;
+        this.speed = speed;
+        this.color = COLORS.obstacle;
+    }
+
+    update() {
+        this.x -= this.speed;
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + this.height);
+        ctx.lineTo(this.x + this.width / 2, this.y);
+        ctx.lineTo(this.x + this.width, this.y + this.height);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner line
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.3;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    getBounds() {
+        const padding = 8;
+        return {
+            x: this.x + padding,
+            y: this.y + padding,
+            w: this.width - padding * 2,
+            h: this.height - padding * 2
+        };
+    }
+}
+
+let player = new Player();
+
+/**
+ * Initialize / Reset Game
+ */
+function initGame() {
+    player = new Player();
+    obstacles = [];
+    particles = [];
+    score = 0;
+    gameSpeed = 7;
+    frameCount = 0;
+    shakeTime = 0;
+    newRecordMsg.style.display = 'none';
+    updateHUD();
+}
+
+function updateHUD() {
+    currentScoreElement.innerText = `SCORE: ${Math.floor(score).toString().padStart(4, '0')}`;
+    highScoreElement.innerText = `BEST: ${Math.floor(highScore).toString().padStart(4, '0')}`;
+}
+
+/**
+ * Main Rendering Functions
+ */
+function drawBackground() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const groundY = h - 100;
+
+    // Background Sky
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#0f172a');
+    bgGrad.addColorStop(0.7, '#1e293b');
+    bgGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Horizon Line
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = COLORS.player;
+    ctx.strokeStyle = COLORS.player;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(w, groundY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Perspective Grid
+    ctx.strokeStyle = COLORS.grid;
+    ctx.lineWidth = 1;
+
+    // Horizontal Lines (Static)
+    for (let i = 0; i < 12; i++) {
+        const y = groundY + (Math.pow(i, 1.5) * 8);
+        if (y > h) break;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+    }
+
+    // Moving Vertical Lines
+    const gridDensity = 60;
+    for (let x = -gridOffset; x < w + 400; x += gridDensity) {
+        ctx.beginPath();
+        ctx.moveTo(x, groundY);
+        ctx.lineTo(x - 400, h);
+        ctx.stroke();
+    }
+}
+
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Screen Shake Effect
+    ctx.save();
+    if (shakeTime > 0) {
+        const intensity = (shakeTime / 15) * 12;
+        const dx = (Math.random() - 0.5) * intensity;
+        const dy = (Math.random() - 0.5) * intensity;
+        ctx.translate(dx, dy);
+        shakeTime--;
+    }
+
+    drawBackground();
+
+    if (currentState === STATE.PLAYING) {
+        updatePlaying();
+    } else {
+        drawPlaying();
+    }
+
+    // Particles Layer
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    ctx.restore();
+    frameCount++;
+    requestAnimationFrame(loop);
+}
+
+function updatePlaying() {
+    score += 0.15;
+    gameSpeed += 0.0015;
+
+    player.update();
+
+    // Procedural Obstacle Spawning
+    const spawnRate = Math.max(50, Math.floor(110 - gameSpeed * 2.5));
+    if (frameCount % spawnRate === 0) {
+        obstacles.push(new Obstacle(gameSpeed));
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.update();
+        obs.draw(ctx);
+
+        // AABB Collision Detection
+        const pRect = player.getBounds();
+        const oRect = obs.getBounds();
+
+        if (pRect.x < oRect.x + oRect.w &&
+            pRect.x + pRect.w > oRect.x &&
+            pRect.y < oRect.y + oRect.h &&
+            pRect.y + pRect.h > oRect.y) {
+            gameOver();
+        }
+
+        if (obs.x + obs.width < -50) {
+            obstacles.splice(i, 1);
+        }
+    }
+
+    player.draw(ctx);
+    gridOffset = (gridOffset + gameSpeed) % 60;
+    updateHUD();
+}
+
+function drawPlaying() {
+    obstacles.forEach(obs => obs.draw(ctx));
+    player.draw(ctx);
+}
+
+function gameOver() {
+    currentState = STATE.GAMEOVER;
+    shakeTime = 18;
+    createExplosion(player.x + player.width/2, player.y + player.height/2, COLORS.explosion);
+
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('rushRunnerHighScore', highScore);
+        newRecordMsg.style.display = 'inline';
+    }
+
+    finalScoreElement.innerText = Math.floor(score);
+    gameoverScreen.style.display = 'block';
+}
+
+/**
+ * Input Handling
+ */
+function handleAction(e) {
+    if (e && e.type === 'keydown' && e.repeat) return;
+
+    if (currentState === STATE.PLAYING) {
+        player.jump();
+    } else if (currentState === STATE.MENU) {
+        startGame();
+    } else if (currentState === STATE.GAMEOVER) {
+        // Prevent accidental restart immediately
+        if (frameCount % 60 > 20) startGame();
+    }
+}
+
+function startGame() {
+    initGame();
+    currentState = STATE.PLAYING;
+    menuScreen.style.display = 'none';
+    gameoverScreen.style.display = 'none';
+}
+
+// Event Listeners
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleAction(e);
+    }
+});
+
+canvas.addEventListener('mousedown', (e) => {
+    handleAction(e);
+});
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleAction(e);
+}, { passive: false });
+
+document.getElementById('start-btn').onclick = startGame;
+document.getElementById('restart-btn').onclick = startGame;
+
+// Start Engine
+initGame();
+loop();
+</script>
+</body>
+</html>
